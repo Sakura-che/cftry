@@ -32,6 +32,7 @@ jobs:
           # 使用你提供的稳定 Release 链接
           wget -O origin.js https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/download/v3.6.1/worker.js || (echo "Failed to download the source file." && exit 1)
       
+      # --- 这是你可能遗漏的关键步骤 ---
       - name: Create Safer Obfuscator Config
         # 这个配置移除了 selfDefending 和 debugProtection 以避免被 Cloudflare 滥用检测系统标记
         run: |
@@ -64,6 +65,7 @@ jobs:
             "unicodeEscapeSequence": false
           }' > obfuscator.json
 
+      # --- 这个步骤依赖于上面创建的文件 ---
       - name: Obfuscate worker script
         # 直接输出为 _worker.js，这是 Cloudflare Pages 高级模式 Worker 的标准文件名
         run: |
