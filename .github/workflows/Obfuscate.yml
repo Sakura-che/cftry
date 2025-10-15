@@ -1,21 +1,20 @@
-name: Build Obfuscate BPB Panel
+name: Build Obfuscated Worker
 
 on:
   push:
     branches:
       - main
   schedule:
-    # Runs everyday at 1:00 AM UTC
+    # 每天凌晨 1 点 (UTC) 运行
     - cron: "0 1 * * *"
-  workflow_dispatch: # 允许手动触发
+  workflow_dispatch: # 允许在 GitHub Actions 页面手动触发
 
 permissions:
-  contents: write
+  contents: write # 允许提交混淆后的文件回仓库
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -23,34 +22,30 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20" # 使用一个稳定的 LTS 版本
+          node-version: "20"
 
       - name: Install dependencies
-        # 不再使用全局安装，而是安装到本地 node_modules，这是更好的实践
         run: npm install javascript-obfuscator
 
-      - name: Clone BPB worker js
+      - name: Download latest worker script
         run: |
-          # 增加错误处理，如果下载失败则任务失败
+          # 使用你提供的稳定 Release 链接
           wget -O origin.js https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/download/v3.6.1/worker.js || (echo "Failed to download the source file." && exit 1)
       
-      - name: Create Obfuscator Config
-        # 将复杂的配置写入一个 JSON 文件，方便管理
+      - name: Create Safer Obfuscator Config
+        # 这个配置移除了 selfDefending 和 debugProtection 以避免被 Cloudflare 滥用检测系统标记
         run: |
           echo '{
             "compact": true,
             "controlFlowFlattening": true,
-            "controlFlowFlatteningThreshold": 1,
+            "controlFlowFlatteningThreshold": 0.75,
             "deadCodeInjection": true,
-            "deadCodeInjectionThreshold": 1,
-            "debugProtection": true,
-            "debugProtectionInterval": 4000,
+            "deadCodeInjectionThreshold": 0.4,
             "disableConsoleOutput": true,
             "identifierNamesGenerator": "hexadecimal",
             "log": false,
             "numbersToExpressions": true,
-            "renameGlobals": false,
-            "selfDefending": true,
+            "renameGlobals": false, /* [重要] 必须为 false 以兼容 Cloudflare 环境 */
             "simplify": true,
             "splitStrings": true,
             "splitStringsChunkLength": 10,
@@ -60,36 +55,25 @@ jobs:
             "stringArrayIndexShift": true,
             "stringArrayRotate": true,
             "stringArrayShuffle": true,
-            "stringArrayWrappersCount": 5,
+            "stringArrayWrappersCount": 2,
             "stringArrayWrappersChainedCalls": true,
-            "stringArrayWrappersParametersMaxCount": 5,
+            "stringArrayWrappersParametersMaxCount": 3,
             "stringArrayWrappersType": "function",
-            "stringArrayThreshold": 1,
+            "stringArrayThreshold": 0.8,
             "transformObjectKeys": true,
             "unicodeEscapeSequence": false
           }' > obfuscator.json
 
-      - name: Obfuscate BPB worker js (First Pass)
+      - name: Obfuscate worker script
+        # 直接输出为 _worker.js，这是 Cloudflare Pages 高级模式 Worker 的标准文件名
         run: |
-          # 使用 npx 执行本地安装的包，并引用配置文件
-          npx javascript-obfuscator origin.js --config obfuscator.json --output pass1.js
+          npx javascript-obfuscator origin.js --config obfuscator.json --output _worker.js
 
-      - name: Obfuscate BPB worker js (Second Pass for added complexity)
-        # 第二轮混淆，使用不同的、更侧重于结构破坏的配置
-        run: |
-          npx javascript-obfuscator pass1.js \
-          --output _worker.js \
-          --compact true \
-          --self-defending true \
-          --string-array true \
-          --string-array-encoding 'base64' \
-          --split-strings true \
-          --split-strings-chunk-length 5
-
-      - name: Commit changes
+      - name: Commit obfuscated file
+        # 将混淆后的 _worker.js 文件提交回仓库
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           branch: main
-          commit_message: ':zap: Chore: Update obfuscated worker script'
+          commit_message: 'build: Update obfuscated _worker.js (safe-mode)'
           commit_author: 'github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
-
+          file_pattern: '_worker.js' # 只提交 _worker.js 文件
