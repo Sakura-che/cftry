@@ -32,7 +32,7 @@ jobs:
       - name: Clone BPB worker js
         run: |
           # 增加错误处理，如果下载失败则任务失败
-          wget -O origin.js https://raw.githubusercontent.com/bia-pain-bache/BPB-Worker-Panel/refs/heads/main/build/unobfuscated-worker.js || (echo "Failed to download the source file." && exit 1)
+          wget -O origin.js https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/download/v3.6.1/worker.js || (echo "Failed to download the source file." && exit 1)
       
       - name: Create Obfuscator Config
         # 将复杂的配置写入一个 JSON 文件，方便管理
