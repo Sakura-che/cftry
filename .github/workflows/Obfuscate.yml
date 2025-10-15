@@ -29,53 +29,45 @@ jobs:
 
       - name: Download latest worker script
         run: |
-          # 使用你提供的稳定 Release 链接
           wget -O origin.js https://github.com/bia-pain-bache/BPB-Worker-Panel/releases/download/v3.6.1/worker.js || (echo "Failed to download the source file." && exit 1)
       
-      # --- 这是你可能遗漏的关键步骤 ---
-      - name: Create Safer Obfuscator Config
-        # 这个配置移除了 selfDefending 和 debugProtection 以避免被 Cloudflare 滥用检测系统标记
-        run: |
-          echo '{
-            "compact": true,
-            "controlFlowFlattening": true,
-            "controlFlowFlatteningThreshold": 0.75,
-            "deadCodeInjection": true,
-            "deadCodeInjectionThreshold": 0.4,
-            "disableConsoleOutput": true,
-            "identifierNamesGenerator": "hexadecimal",
-            "log": false,
-            "numbersToExpressions": true,
-            "renameGlobals": false, /* [重要] 必须为 false 以兼容 Cloudflare 环境 */
-            "simplify": true,
-            "splitStrings": true,
-            "splitStringsChunkLength": 10,
-            "stringArray": true,
-            "stringArrayCallsTransform": true,
-            "stringArrayEncoding": ["rc4"],
-            "stringArrayIndexShift": true,
-            "stringArrayRotate": true,
-            "stringArrayShuffle": true,
-            "stringArrayWrappersCount": 2,
-            "stringArrayWrappersChainedCalls": true,
-            "stringArrayWrappersParametersMaxCount": 3,
-            "stringArrayWrappersType": "function",
-            "stringArrayThreshold": 0.8,
-            "transformObjectKeys": true,
-            "unicodeEscapeSequence": false
-          }' > obfuscator.json
-
-      # --- 这个步骤依赖于上面创建的文件 ---
+      # --- 核心步骤：直接在命令行中进行混淆 ---
+      # 不再需要创建配置文件的步骤
       - name: Obfuscate worker script
-        # 直接输出为 _worker.js，这是 Cloudflare Pages 高级模式 Worker 的标准文件名
         run: |
-          npx javascript-obfuscator origin.js --config obfuscator.json --output _worker.js
+          npx javascript-obfuscator origin.js --output _worker.js \
+            --compact true \
+            --control-flow-flattening true \
+            --control-flow-flattening-threshold 0.75 \
+            --dead-code-injection true \
+            --dead-code-injection-threshold 0.4 \
+            --disable-console-output true \
+            --identifier-names-generator hexadecimal \
+            --log false \
+            --numbers-to-expressions true \
+            --rename-globals false \
+            --simplify true \
+            --split-strings true \
+            --split-strings-chunk-length 10 \
+            --string-array true \
+            --string-array-calls-transform true \
+            --string-array-encoding rc4 \
+            --string-array-index-shift true \
+            --string-array-rotate true \
+            --string-array-shuffle true \
+            --string-array-wrappers-count 2 \
+            --string-array-wrappers-chained-calls true \
+            --string-array-wrappers-parameters-max-count 3 \
+            --string-array-wrappers-type function \
+            --string-array-threshold 0.8 \
+            --transform-object-keys true \
+            --unicode-escape-sequence false
 
       - name: Commit obfuscated file
         # 将混淆后的 _worker.js 文件提交回仓库
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           branch: main
-          commit_message: 'build: Update obfuscated _worker.js (safe-mode)'
+          commit_message: 'build: Update obfuscated _worker.js'
           commit_author: 'github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
           file_pattern: '_worker.js' # 只提交 _worker.js 文件
